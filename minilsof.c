@@ -15,18 +15,18 @@ typedef struct {
     char name[32];
 } fdent_t;
 
-static void die(const char *msg) {
+void die(const char *msg) {
     perror(msg);
     exit(1);
 }
 
-static int cmp_fdent(const void *a, const void *b) {
+int cmp_fdent(const void *a, const void *b) {
     const fdent_t *x = (const fdent_t *)a;
     const fdent_t *y = (const fdent_t *)b;
     return (x->fd > y->fd) - (x->fd < y->fd);
 }
 
-static const char *ftype_from_mode(mode_t m) {
+const char *ftype_from_mode(mode_t m) {
     if (S_ISREG(m))  return "REG";
     if (S_ISDIR(m))  return "DIR";
     if (S_ISCHR(m))  return "CHR";
@@ -37,7 +37,7 @@ static const char *ftype_from_mode(mode_t m) {
     return "?";
 }
 
-static void list_fds(pid_t pid) {
+void list_fds(pid_t pid) {
     char fd_dir[64];
     snprintf(fd_dir, sizeof(fd_dir), "/proc/%d/fd", pid);
 
@@ -111,7 +111,7 @@ static void list_fds(pid_t pid) {
     free(arr);
 }
 
-static pid_t parse_pid(const char *s) {
+pid_t parse_pid(const char *s) {
     char *end = NULL;
     long v = strtol(s, &end, 10);
     if (!end || *end != '\0' || v <= 0 || v > INT32_MAX) return -1;
