@@ -30,7 +30,7 @@ int read_fdinfo(pid_t pid, int fd,
     return (have_pos && have_flags) ? 0 : 1;
 }
 
-static const char *accmode_str(unsigned long flags) {
+const char *accmode_str(unsigned long flags) {
     switch (flags & O_ACCMODE) {
         case O_RDONLY: return "RDONLY";
         case O_WRONLY: return "WRONLY";
