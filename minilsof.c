@@ -1,5 +1,6 @@
 // minilsof.c - MVP: lista FDs via /proc/<pid>/fd (tipo, mode, size, target)
 #define _GNU_SOURCE
+#include <sys/types.h>
 #include <dirent.h>
 #include <errno.h>
 #include <limits.h>
