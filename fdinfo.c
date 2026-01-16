@@ -1,3 +1,6 @@
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <sys/types.h>
 #include <fcntl.h>   // O_* flags
 
 int read_fdinfo(pid_t pid, int fd,
