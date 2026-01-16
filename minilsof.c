@@ -10,6 +10,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+int read_fdinfo(pid_t pid, int fd,
+                unsigned long long *pos_out,
+                unsigned long *flags_out);
+
+const char *accmode_str(unsigned long flags);
+
 typedef struct {
     int fd;
     char name[32];
