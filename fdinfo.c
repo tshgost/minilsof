@@ -3,9 +3,9 @@
 #include <sys/types.h>
 #include <fcntl.h>   // O_* flags
 
-int read_fdinfo(pid_t pid, int fd,
-                       unsigned long long *pos_out,
-                       unsigned long *flags_out)
+int read_fdinfo_pos_flags(pid_t pid, int fd,
+                          unsigned long long *pos_out,
+                          unsigned long *flags_out)
 {
     char path[128];
     snprintf(path, sizeof(path), "/proc/%d/fdinfo/%d", pid, fd);
