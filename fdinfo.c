@@ -1,6 +1,6 @@
 #include <fcntl.h>   // O_* flags
 
-static int read_fdinfo(pid_t pid, int fd,
+int read_fdinfo(pid_t pid, int fd,
                        unsigned long long *pos_out,
                        unsigned long *flags_out)
 {
