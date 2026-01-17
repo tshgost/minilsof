@@ -71,7 +71,8 @@ void list_fds(pid_t pid) {
             arr = tmp;
         }
         arr[n].fd = (int)v;
-        snprintf(arr[n].name, sizeof(arr[n].name), "%s", ent->d_name);
+        strncpy(arr[n].name, ent->d_name, sizeof(arr[n].name) - 1);
+        arr[n].name[sizeof(arr[n].name) - 1] = '\0';
         n++;
     }
     closedir(d);
