@@ -136,15 +136,38 @@ pid_t parse_pid(const char *s) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 2) {
-        fprintf(stderr, "usage: %s <pid>\n", argv[0]);
+    if (argc < 2) {
+        usage(argv[0]);
         return 2;
     }
-    pid_t pid = parse_pid(argv[1]);
+
+    if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
+        usage(argv[0]);
+        return 0;
+    }
+
+    const char *pid_s = NULL;
+
+    if (strcmp(argv[1], "-p") == 0) {
+        if (argc != 3) {
+            usage(argv[0]);
+            return 2;
+        }
+        pid_s = argv[2];
+    } else {
+        if (argc != 2) {
+            usage(argv[0]);
+            return 2;
+        }
+        pid_s = argv[1];
+    }
+
+    pid_t pid = parse_pid(pid_s);
     if (pid <= 0) {
-        fprintf(stderr, "invalid pid: %s\n", argv[1]);
+        fprintf(stderr, "invalid pid: %s\n", pid_s);
         return 2;
     }
+
     list_fds(pid);
     return 0;
 }
