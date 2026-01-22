@@ -15,6 +15,15 @@ int read_fdinfo(pid_t pid, int fd,
                 unsigned long long *pos_out,
                 unsigned long *flags_out);
 
+static void usage(const char *prog) {
+    fprintf(stderr,
+        "usage:\n"
+        "  %s <pid>\n"
+        "  %s -p <pid>\n"
+        "  %s -h | --help\n",
+        prog, prog, prog);
+}
+
 const char *accmode_str(unsigned long flags);
 
 typedef struct {
