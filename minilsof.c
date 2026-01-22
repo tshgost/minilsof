@@ -1,4 +1,4 @@
-// minilsof.c - MVP: lista FDs via /proc/<pid>/fd (tipo, mode, size, target)
+// minilsof.c - MVP+: list FDs via /proc/<pid>/fd (+ acc/pos via /proc/<pid>/fdinfo)
 #define _GNU_SOURCE
 #include <sys/types.h>
 #include <dirent.h>
@@ -10,10 +10,18 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <inttypes.h>
 
-int read_fdinfo(pid_t pid, int fd,
-                unsigned long long *pos_out,
-                unsigned long *flags_out);
+int read_fdinfo_pos_flags(pid_t pid, int fd,
+                          unsigned long long *pos_out,
+                          unsigned long *flags_out);
+
+const char *accmode_str(unsigned long flags);
+
+typedef struct {
+    int fd;
+    char name[32];
+} fdent_t;
 
 static void usage(const char *prog) {
     fprintf(stderr,
@@ -24,25 +32,18 @@ static void usage(const char *prog) {
         prog, prog, prog);
 }
 
-const char *accmode_str(unsigned long flags);
-
-typedef struct {
-    int fd;
-    char name[32];
-} fdent_t;
-
-void die(const char *msg) {
+static void die(const char *msg) {
     perror(msg);
     exit(1);
 }
 
-int cmp_fdent(const void *a, const void *b) {
+static int cmp_fdent(const void *a, const void *b) {
     const fdent_t *x = (const fdent_t *)a;
     const fdent_t *y = (const fdent_t *)b;
     return (x->fd > y->fd) - (x->fd < y->fd);
 }
 
-const char *ftype_from_mode(mode_t m) {
+static const char *ftype_from_mode(mode_t m) {
     if (S_ISREG(m))  return "REG";
     if (S_ISDIR(m))  return "DIR";
     if (S_ISCHR(m))  return "CHR";
@@ -53,14 +54,14 @@ const char *ftype_from_mode(mode_t m) {
     return "?";
 }
 
-void list_fds(pid_t pid) {
+static void list_fds(pid_t pid) {
     char fd_dir[64];
     snprintf(fd_dir, sizeof(fd_dir), "/proc/%d/fd", pid);
 
     DIR *d = opendir(fd_dir);
     if (!d) die("opendir /proc/<pid>/fd");
 
-    // 1) coleta entradas
+    // 1) collect entries
     size_t cap = 64, n = 0;
     fdent_t *arr = (fdent_t *)calloc(cap, sizeof(fdent_t));
     if (!arr) die("calloc");
@@ -79,6 +80,7 @@ void list_fds(pid_t pid) {
             if (!tmp) die("realloc");
             arr = tmp;
         }
+
         arr[n].fd = (int)v;
         strncpy(arr[n].name, ent->d_name, sizeof(arr[n].name) - 1);
         arr[n].name[sizeof(arr[n].name) - 1] = '\0';
@@ -89,9 +91,10 @@ void list_fds(pid_t pid) {
     qsort(arr, n, sizeof(fdent_t), cmp_fdent);
 
     printf("PID %d\n", pid);
-    printf("%-4s %-5s %-6s %-10s %s\n", "FD", "TYPE", "MODE", "SIZE", "TARGET");
+    printf("%-4s %-5s %-6s %-10s %-6s %-10s %s\n",
+           "FD", "TYPE", "MODE", "SIZE", "ACC", "POS", "TARGET");
 
-    // 2) imprime
+    // 2) print
     for (size_t i = 0; i < n; i++) {
         char linkpath[128];
         snprintf(linkpath, sizeof(linkpath), "%s/%s", fd_dir, arr[i].name);
@@ -99,8 +102,8 @@ void list_fds(pid_t pid) {
         char target[PATH_MAX];
         ssize_t rl = readlink(linkpath, target, sizeof(target) - 1);
         if (rl < 0) {
-            printf("%-4d %-5s %-6s %-10s %s\n",
-                   arr[i].fd, "?", "????", "?", strerror(errno));
+            printf("%-4d %-5s %-6s %-10s %-6s %-10s %s\n",
+                   arr[i].fd, "?", "????", "?", "-", "-", strerror(errno));
             continue;
         }
         target[rl] = '\0';
@@ -112,23 +115,34 @@ void list_fds(pid_t pid) {
 
         if (stat(linkpath, &st) == 0) {
             type = ftype_from_mode(st.st_mode);
-            snprintf(modebuf, sizeof(modebuf), "%04o", (unsigned)(st.st_mode & 07777));
-
-            // size faz sentido p/ REG; p/ outros deixa como número mesmo (é ok)
-            snprintf(sizebuf, sizeof(sizebuf), "%lld", (long long)st.st_size);
-        } else {
-            // não conseguiu stat (ex.: perm, corrida), ainda mostra o target
-            type = "?";
+            snprintf(modebuf, sizeof(modebuf), "%04o",
+                     (unsigned)(st.st_mode & 07777));
+            snprintf(sizebuf, sizeof(sizebuf), "%" PRIdMAX,
+                     (intmax_t)st.st_size);
         }
 
-        printf("%-4d %-5s %-6s %-10s %s\n",
-               arr[i].fd, type, modebuf, sizebuf, target);
+        unsigned long long pos = 0;
+        unsigned long flags = 0;
+        char accbuf[8] = "-";
+        char posbuf[32] = "-";
+
+        int rc = read_fdinfo_pos_flags(pid, arr[i].fd, &pos, &flags);
+        if (rc == 0) {
+            snprintf(accbuf, sizeof(accbuf), "%s", accmode_str(flags));
+            snprintf(posbuf, sizeof(posbuf), "%llu", pos);
+        } else if (rc < 0) {
+            snprintf(accbuf, sizeof(accbuf), "ERR");
+            snprintf(posbuf, sizeof(posbuf), "-");
+        }
+
+        printf("%-4d %-5s %-6s %-10s %-6s %-10s %s\n",
+               arr[i].fd, type, modebuf, sizebuf, accbuf, posbuf, target);
     }
 
     free(arr);
 }
 
-pid_t parse_pid(const char *s) {
+static pid_t parse_pid(const char *s) {
     char *end = NULL;
     long v = strtol(s, &end, 10);
     if (!end || *end != '\0' || v <= 0 || v > INT32_MAX) return -1;
