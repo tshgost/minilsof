@@ -19,6 +19,7 @@ int read_fdinfo_pos_flags(pid_t pid, int fd,
     while (fgets(line, sizeof(line), f)) {
         unsigned long long pos;
         unsigned long flags;
+
         if (!have_pos && sscanf(line, "pos:\t%llu", &pos) == 1) {
             *pos_out = pos;
             have_pos = 1;
@@ -26,6 +27,7 @@ int read_fdinfo_pos_flags(pid_t pid, int fd,
             *flags_out = flags;
             have_flags = 1;
         }
+
         if (have_pos && have_flags) break;
     }
 
