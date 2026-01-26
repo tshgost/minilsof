@@ -3,7 +3,7 @@ CFLAGS  := -std=c11 -O2 -Wall -Wextra -pedantic
 LDFLAGS :=
 
 BIN     := minilsof
-SRCS    := minilsof.c fdinfo.c
+SRCS    := minilsof.c fdinfo.c unixsock.c
 OBJS    := $(SRCS:.c=.o)
 
 .PHONY: all clean run
