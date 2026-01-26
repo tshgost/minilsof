@@ -11,6 +11,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <inttypes.h>
+#include "unixsock.h"
+
 
 int read_fdinfo_pos_flags(pid_t pid, int fd,
                           unsigned long long *pos_out,
